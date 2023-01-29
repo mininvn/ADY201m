@@ -3,12 +3,28 @@ import requests
 import json
 from datetime import datetime
 
-sbscDataToType = {
-    "data": "5",
-    "column": "9"
-}
+def convertToTimestamp(string):
+    if (len(string) < 11):
+        return string
+    string = string[:10] + "." + string[10:]
+    return float(string)
 
-def crawlData(stockCode, crawlType):
+def produceCsvRow(data): #array only
+    row = ""
+    for i in data:
+        row += str(i) + ","
+    row = row[:-1] + "\n"
+    return row
+
+def produceCsvHeadings(headings):
+    data = ""
+    for i in headings: 
+        data += i + ","
+    data = data[:-1] + "\n"
+    return data
+
+def crawlPriceData(stockCode):
+    crawlType = "5"
     dataUrl = "http://stockboard2.sbsc.com.vn/ChartHandler.ashx?Type=" + crawlType + "&Symbol=" + stockCode + "&Range=all"
     resp = requests.get(dataUrl)
     
@@ -23,32 +39,56 @@ def crawlData(stockCode, crawlType):
 
     return data
 
-def produceCsvRow(data):
-    row = ""
-    for i in data:
-        row += str(i) + ","
-    row = row[:-1] + "\n"
-    return row
+def producePriceDataCsv(priceData):
+    res = ""
+    for i in priceData:
+        i[0] = convertToTimestamp(str(i[0]))
+        i[0] = datetime.fromtimestamp(i[0])
+        res += produceCsvRow(i)
+    return res
 
 stockCode = "FPT"
-crawlType = "5"
-dataRows = crawlData(stockCode, crawlType)
+priceData = crawlPriceData(stockCode)
+priceDataCols = ["Time", "Open", "High", "Low", "Close", "Quantity"]
 
-dataCols = ["Time", "Open", "High", "Low", "Close", "Quantity"]
+csvPrice = ""
+csvPrice += produceCsvHeadings(priceDataCols)
+csvPrice += producePriceDataCsv(priceData)
 
-csvData = ""
+def crawlAnnualData(stockCode):
+    dataUrl = "https://e.cafef.vn/fi.ashx?symbol=" + stockCode
+    resp = requests.get(dataUrl)
+    
+    data = resp.text
 
-for i in dataCols: 
-    csvData += i + ","
-csvData = csvData[:-1] + "\n"
+    #Json.parse data
+    data = json.loads(data)
 
-for i in dataRows:
-    i[0] = str(i[0])
-    i[0] = i[0][:11]
-    i[0] = int(i[0])
-    i[0] = datetime.fromtimestamp(i[0])
-    csvData += produceCsvRow(i)
+    return data
 
-f = open("./generated/crawl" + stockCode + ".csv", "a")
-f.write(csvData)
+annualData = crawlAnnualData(stockCode)
+annualDataCols = []
+for key in dict.keys(annualData[0]):
+    annualDataCols.append(key)
+
+def produceAnnualDataCsv(annualData):
+    res = ""
+    for row in annualData: #each row
+        rows = list(dict.values(row))
+        rows[-1] = rows[-1].split("(")[1]
+        rows[-1] = rows[-1].split(")")[0]
+        rows[-1] = datetime.fromtimestamp(convertToTimestamp(rows[-1]))
+        res += produceCsvRow(rows)
+    return res
+
+csvAnnual = ""
+csvAnnual += produceCsvHeadings(annualDataCols)
+csvAnnual += produceAnnualDataCsv(annualData)
+
+f = open("./generated/crawlPrice" + stockCode + ".csv", "w")
+f.write(csvPrice)
+f.close()
+
+f = open("./generated/crawlAnnual" + stockCode + ".csv", "w")
+f.write(csvAnnual)
 f.close()
