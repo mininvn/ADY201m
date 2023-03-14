@@ -47,7 +47,7 @@ def producePriceDataCsv(priceData):
         res += produceCsvRow(i)
     return res
 
-stockCode = "FPT"
+stockCode = "VIC"
 priceData = crawlPriceData(stockCode)
 priceDataCols = ["Time", "Open", "High", "Low", "Close", "Quantity"]
 

@@ -1,4 +1,10 @@
 datetime
 pandas
 matplotlib
+bs4
+requests
 seaborn
+scipy
+statsmodels
+scikit-learn
+pyodbc
